@@ -1,0 +1,347 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Lab3
+{
+    public partial class Form1 : Form
+    {
+
+        private void Swap(ref int x, ref int y)
+        {
+            int buff = x;
+            x = y;
+            y = buff;
+        }
+
+        // Естесственный алгоритм рисования линии
+        public void NaturalLine(double x, double y, double X, double Y, Bitmap bmp, Color color)
+        {
+            double x0;
+            double x1;
+            double y0;
+            double y1;
+
+            bool flag = false;
+            
+            if ((X - x) == 0)//чтобы избежать деления на ноль и рисовать вертикальные линии
+            {
+                y0 = (y < Y) ? y : Y;
+                y1 = (y < Y) ? Y : y;
+                for (int i = Convert.ToInt32(y0); i <= y1; i++)
+                {
+                    bmp.SetPixel(Convert.ToInt32(x), i, color);
+
+                }
+            }
+            else
+            {
+                double a = (Y - y) / (X - x);
+                double b = y - a * x;
+                if (Math.Abs(X - x) < Math.Abs(Y - y))
+                {
+                    // Меняем координату у
+                    x0 = y;
+                    x1 = Y;
+                    y0 = x;
+                    y1 = X;
+                    flag = true;
+                }
+                else
+                {
+                    // Меняем координату х
+                    x0 = x;
+                    x1 = X;
+                    y0 = y;
+                    y1 = Y;
+                }
+
+                if (x1 < x0)
+                {
+                    double v = x1; x1 = x0; x0 = v;
+                }
+
+                if (flag)
+                {
+                    for (int i = Convert.ToInt32(x0); i <= x1; i++) bmp.SetPixel(Convert.ToInt32((i- b)/a), i , color);
+                }
+                else
+                    for (int i = Convert.ToInt32(x0); i <= x1; i++) bmp.SetPixel(i, Convert.ToInt32(i * a + b), color);    
+
+            }
+        }
+
+        // Инкрементный алгоритм Брезенхама рисования линии
+        public void BresenhamLine(int x0, int y0, int x1, int y1, Bitmap bmp, Color color)
+        {
+            bool checkdydx = Math.Abs(y1 - y0) > Math.Abs(x1 - x0);
+
+            if (checkdydx)
+            {
+                Swap(ref x0, ref y0);
+                Swap(ref x1, ref y1);
+            }
+
+            if (x0 > x1)
+            {
+                Swap(ref x0, ref x1);
+                Swap(ref y0, ref y1);
+            }
+            double dx = x1 - x0;
+            double dy = Math.Abs(y1 - y0);
+            double m = dy / dx;
+            double e = m - 0.5;
+            int ystep = (y0 < y1) ? 1 : -1;
+            int y = y0;
+            for (int x = x0; x <= x1; x++)
+            {
+                bmp.SetPixel(checkdydx ? y : x, checkdydx ? x : y, color);
+                if (e >= 0)
+                {
+                    y += ystep;
+                    e += m - 1;
+                }
+                else e += m;
+            }
+        } 
+  
+        //Вспомогательная функция для построения окружностей
+        public void Draw8Pixels (int x, int y, int x0, int y0, Bitmap bmp, Color color)
+        {
+            bmp.SetPixel(x+x0, y+y0, color);
+            bmp.SetPixel(x + x0, -y + y0, color);
+            bmp.SetPixel(-x + x0, y + y0, color);
+            bmp.SetPixel(-x + x0, -y + y0, color);
+            bmp.SetPixel(y + x0, x + y0, color);
+            bmp.SetPixel(y + x0, -x + y0, color);
+            bmp.SetPixel(-y + x0, x + y0, color);
+            bmp.SetPixel(-y + x0, -x + y0, color);
+        } 
+
+        public void BarezenhamCircle(int x0, int y0, int R, Bitmap bmp, Color color)
+        {
+            int x = 0;
+            int y = R;
+            int d = 3 - 2 * R;
+            while (y >= x)
+            {
+                Draw8Pixels(x, y, x0, y0, bmp, color);
+                if (d <= 0)
+                {
+                    d += 4 * x + 6;
+                }
+                else
+                {
+                    d += 4 * (x - y) + 10;
+                    y--;
+                }
+                x++;
+            }
+        }
+        // Модифицированный метод застравки
+        public void ZatravkaMod(int x, int y, Bitmap bmp, Color color)
+        {
+            Color backcolor = bmp.GetPixel(x, y); 
+            int xl = x;    
+            int xr = x+1;     
+            //Двигаемся влево и закрашиваем пикселы в цвет до тех пор, пока не встретим границу             
+            while ((xl >= 0) && (bmp.GetPixel(xl, y) == backcolor))
+            {
+                bmp.SetPixel(xl, y, color);
+                xl--;
+            }
+            //Сходим с границы внутрь области
+            xl++;
+            //Двигаемся вправо и закрашиваем пикселы в цвет до тех пор, пока не встретим границу 
+            while ((xr < bmp.Width - 1) && (bmp.GetPixel(xr, y) == backcolor))
+            {
+                bmp.SetPixel(xr, y, color);
+                xr++;
+            }
+            //Сходим с границы внутрь области
+            xr--;
+
+            int tmp_x = xl;
+            while ((tmp_x <= xr) && (y != 0))// пока не дошли до правого края и не вышли за пределы фигуры
+            {
+                // Идем вправо, пока не найдем незакрашенный пиксель
+                while ((tmp_x <= xr) && (bmp.GetPixel(tmp_x, y - 1) != backcolor))
+                {
+                    tmp_x++;
+                }
+                //нашли незвакрашенный внутри области - красим
+                if (tmp_x <= xr) ZatravkaMod(tmp_x, y - 1, bmp, color);
+                tmp_x++;
+            }
+            tmp_x = xl;
+            while ((tmp_x <= xr) && (y + 1 != bmp.Height))// пока не дошли до правого края и не вышли за пределы фигуры 
+            {
+                // Идем вправо, пока не найдем незакрашенный пиксель
+                while ((tmp_x <= xr) && (bmp.GetPixel(tmp_x, y + 1) != backcolor))
+                {
+                    tmp_x++;
+                }
+                //нашли незвакрашенный внутри области - красим
+                if (tmp_x <= xr) ZatravkaMod(tmp_x, y + 1, bmp, color);
+                tmp_x++;
+            }
+        }
+
+        
+        public void Poligon(double[] x_array, double[] y_array, Bitmap bmp, Color color)
+        {
+            double y_max = y_array.Max<double>();
+            double y_min = y_array.Min<double>();
+
+            double[] x_cross_array = new double[x_array.Length];
+
+            for (int i = Convert.ToInt32(y_min); i <= Convert.ToInt32(y_max); i++)
+            {
+                for (int j = 0; j <= x_array.Length - 2; j++)
+                    if (((y_array[j + 1] - y_array[j]) != 0)&& (((i >= y_array[j]) && (i <= y_array[j + 1])) || ((i <= y_array[j]) && (i >= y_array[j]))))
+                        x_cross_array[j] = x_array[j] + ((y_array[j + 1] - i) * (x_array[j + 1] - x_array[j])) / (y_array[j + 1] - y_array[j]);
+
+                //сортируем по возрастанию точки пересечения
+                Array.Sort(x_cross_array);
+                for (int q=0; q<x_cross_array.Length-2; q=q+2)
+                {                    
+                    BresenhamLine(Convert.ToInt32(x_cross_array[q]), i, Convert.ToInt32(x_cross_array[q+1]), i, bmp, color);
+                }               
+            }
+        }
+
+
+        //  Закраска узором
+        public void Pattern(int x, int y, Bitmap bmp, Color[,] color_pattern, int w, int h)
+        {
+            Color backcolor = bmp.GetPixel(x, y);
+            int xl = x;
+            int xr = x + 1;
+            //Двигаемся влево и закрашиваем пикселы в цвет до тех пор, пока не встретим границу             
+            while ((xl >= 0) && (bmp.GetPixel(xl, y) == backcolor))
+            {
+                bmp.SetPixel(xl, y, color_pattern[xl % w, y % h]);
+                xl--;
+            }
+            //Сходим с границы внутрь области
+            xl++;
+            //Двигаемся вправо и закрашиваем пикселы в цвет до тех пор, пока не встретим границу 
+            while ((xr < bmp.Width - 1) && (bmp.GetPixel(xr, y) == backcolor))
+            {
+                bmp.SetPixel(xr, y, color_pattern[xr % w, y % h]);
+                xr++;
+            }
+            //Сходим с границы внутрь области
+            xr--;
+
+            int tmp_x = xl;
+            while ((tmp_x <= xr) && (y != 0))// пока не дошли до правого края и не вышли за пределы фигуры
+            {
+                // Идем вправо, пока не найдем незакрашенный пиксель
+                while ((tmp_x <= xr) && (bmp.GetPixel(tmp_x, y - 1) != backcolor))
+                {
+                    tmp_x++;
+                }
+                //нашли незвакрашенный внутри области - красим
+                if (tmp_x <= xr) Pattern(tmp_x, y - 1, bmp, color_pattern, w, h);
+                tmp_x++;
+            }
+            tmp_x = xl;
+            while ((tmp_x <= xr) && (y + 1 != bmp.Height))// пока не дошли до правого края и не вышли за пределы фигуры 
+            {
+                // Идем вправо, пока не найдем незакрашенный пиксель
+                while ((tmp_x <= xr) && (bmp.GetPixel(tmp_x, y + 1) != backcolor))
+                {
+                    tmp_x++;
+                }
+                //нашли незвакрашенный внутри области - красим
+                if (tmp_x <= xr) Pattern(tmp_x, y + 1, bmp, color_pattern, w, h);
+                tmp_x++;
+            }
+        }
+
+        
+        public Form1()
+        {
+            InitializeComponent();
+            pictureBox1.BackColor = Color.PaleTurquoise; 
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            Bitmap bmp = new Bitmap(9000, 9000);
+
+            Color[,] col = new Color[2, 2];
+            col[0, 0] = Color.White;
+            col[0, 1] = Color.Black;
+            col[1, 0] = Color.Black;
+            col[1, 1] = Color.White;
+            int h = 2;
+            int w = 2;
+            BarezenhamCircle(100, 100, 75, bmp, Color.Yellow);
+            Pattern(100, 26, bmp, col, 2, 2);
+            
+            
+            
+            
+            // солнышко
+            BarezenhamCircle(100, 100, 75, bmp, Color.Yellow);
+            ZatravkaMod(100, 100, bmp, Color.Yellow);
+            
+            //лучики
+            //Мои лучики методом Брезенхама
+            /*
+            BresenhamLine(100, 100, 200, 200, bmp, Color.Yellow);
+            BresenhamLine(100, 100, 0, 200, bmp, Color.Yellow);
+            BresenhamLine(100, 100, 200, 0, bmp, Color.Yellow);
+            BresenhamLine(0, 100, 240, 100, bmp, Color.Yellow);
+            BresenhamLine(100, 100, 100, 240, bmp, Color.Yellow);
+            BresenhamLine(100, 100, 0, 0, bmp, Color.Yellow);
+            */
+
+            //те же лучики во все стороны при помощи естественного алгоритма
+            
+            NaturalLine(0, 0, 200, 200, bmp, Color.Yellow);
+            NaturalLine(0, 200, 200, 0, bmp, Color.Yellow);
+            NaturalLine(100, 0, 100, 200, bmp, Color.Yellow);
+            NaturalLine(0, 100, 200, 100, bmp, Color.Yellow);
+            
+
+            NaturalLine(50,0,150,200, bmp, Color.Yellow);
+            NaturalLine(150,0,50,200, bmp, Color.Yellow);
+            NaturalLine(200,150,0,50, bmp, Color.Yellow);
+            NaturalLine(200,50,0,150, bmp, Color.Yellow);
+
+            //травка
+            BresenhamLine(500, 500, 500, 380, bmp, Color.Green);
+            BresenhamLine(500, 380, 0, 380, bmp, Color.Green);
+            BresenhamLine(0, 380, 0, 500, bmp, Color.Green);
+            BresenhamLine(0, 500, 500, 500, bmp, Color.Green);
+            ZatravkaMod(400, 400, bmp, Color.Green);
+
+            //гора
+            BresenhamLine(300, 100, 400, 380, bmp, Color.RosyBrown);
+            BresenhamLine(400, 380, 100, 380, bmp, Color.RosyBrown);
+            BresenhamLine(100, 380, 300, 100, bmp, Color.RosyBrown);
+            ZatravkaMod(300, 300, bmp, Color.RosyBrown);
+            
+            pictureBox1.Image = bmp;
+        }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+           
+        }
+    }
+}
